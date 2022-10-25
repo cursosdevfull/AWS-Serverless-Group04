@@ -33,10 +33,12 @@ const handler = async (event: any = {}): Promise<any> => {
         Source: "appointment",
         Detail: JSON.stringify({ message }),
         DetailType: "appointment.cancel",
-        EventBusName: "EventBusCurso4",
+        EventBusName: "EventBusSQS",
       },
     ],
   };
+
+  console.log(params);
 
   await eventBridge.putEvents(params).promise();
 

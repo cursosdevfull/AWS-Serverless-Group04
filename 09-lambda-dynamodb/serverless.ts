@@ -3,12 +3,13 @@ import send from '@functions/send';
 import type { AWS } from "@serverless/typescript";
 
 const serverlessConfiguration: AWS = {
-  service: "lambda-source",
+  service: "lambda-dynamodb",
   frameworkVersion: "3",
   plugins: ["serverless-esbuild"],
   provider: {
     name: "aws",
     runtime: "nodejs14.x",
+    stage: "${opt:stage, 'dev'}",
     apiGateway: {
       minimumCompressionSize: 1024,
       shouldStartNameWithService: true,
@@ -16,16 +17,14 @@ const serverlessConfiguration: AWS = {
     environment: {
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1",
       NODE_OPTIONS: "--enable-source-maps --stack-trace-limit=1000",
-      SQS_QUEUE_URL:
-        "https://sqs.us-east-1.amazonaws.com/282865065290/SQSQueue",
     },
     iam: {
       role: {
         statements: [
           {
             Effect: "Allow",
-            Action: ["sqs:SendMessage"],
-            Resource: "arn:aws:sqs:us-east-1:282865065290:SQSQueue",
+            Action: ["dynamodb:*"],
+            Resource: "*",
           },
         ],
       },
@@ -48,33 +47,24 @@ const serverlessConfiguration: AWS = {
   },
   resources: {
     Resources: {
-      SQSQueue: {
-        Type: "AWS::SQS::Queue",
+      NotificationTable: {
+        Type: "AWS::DynamoDB::Table",
         Properties: {
-          QueueName: "SQSQueue",
-          MessageRetentionPeriod: 86400,
-          VisibilityTimeout: 20,
-          RedrivePolicy: {
-            deadLetterTargetArn: { "Fn::GetAtt": ["SQSQueueDLQ", "Arn"] },
-            maxReceiveCount: 1,
-          },
+          TableName: "notification-${self:provider.stage}",
+          BillingMode: "PAY_PER_REQUEST",
+          AttributeDefinitions: [
+            {
+              AttributeName: "id",
+              AttributeType: "S",
+            },
+          ],
+          KeySchema: [
+            {
+              AttributeName: "id",
+              KeyType: "HASH",
+            },
+          ],
         },
-      },
-      SQSQueueDLQ: {
-        Type: "AWS::SQS::Queue",
-        Properties: {
-          QueueName: "SQSQueueDLQ",
-          MessageRetentionPeriod: 86400,
-          VisibilityTimeout: 20,
-        },
-      },
-    },
-    Outputs: {
-      SQSQueueArn: {
-        Value: { "Fn::GetAtt": ["SQSQueue", "Arn"] },
-      },
-      SQSQueueUrl: {
-        Value: { Ref: "SQSQueue" },
       },
     },
   },
